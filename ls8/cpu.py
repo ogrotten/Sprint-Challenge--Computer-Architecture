@@ -7,7 +7,7 @@ class CPU:
 
 	def __init__(self):
 		"""Construct a new CPU."""
-		self.memory = [0] * 256
+		self.ram = [0] * 256
 		self.register = [0] * 8
 		self.pc = 0
 
@@ -68,26 +68,26 @@ class CPU:
 
 		print()
 
-	def run(self, read):
+	def run(self):
 		"""Run the CPU."""
 
 		running = True
 
+		IR = self.pc
 		while running:
-			IR = self.pc
 
-			instruction = memory[IR]
+			instruction = self.ram[IR]
 
-			if instruction = self.LDI:
-				self.register[memory[IR+1]] = memory[IR+2]
-				# ram_write(self.register[memory[IR+1]],   )
+			if instruction == self.LDI:
+				self.register[self.ram[IR+1]] = self.ram[IR+2]
+				# ram_write(self.register[self.ram[IR+1]],   )
 				IR += 3
 
-			if instruction = self.PRN:
-				print(self.register[memory[IR+1]])
+			elif instruction == self.PRN:
+				print(self.register[self.ram[IR+1]])
 				IR += 2
 			
-			if instruction = self.HLT:
+			elif instruction == self.HLT:
 				running = False
 
 			else:
