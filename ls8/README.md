@@ -244,6 +244,8 @@ Check the LS-8 spec for what the `MUL` instruction does.
 > eventually called the `alu()` function with appropriate arguments to get the
 > work done.
 
+----
+# WEDNESDAY
 ## Step 9: Beautify your `run()` loop
 
 Do you have a big `if-elif` block in your `cpu_run()` function? Is there a way
