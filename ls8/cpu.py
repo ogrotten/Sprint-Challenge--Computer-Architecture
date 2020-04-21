@@ -90,25 +90,23 @@ class CPU:
 			
 			if instruction == self.LDI:
 				self.register[self.ram[IR+1]] = self.ram[IR+2]
-				# ram_write(self.register[self.ram[IR+1]],   )
-				IR += 3
 
 			elif instruction == self.PRN:
 				print(self.register[self.ram[IR+1]])
-				IR += 2
 			
 			elif instruction == self.MUL:
 				# print(101, self.register[self.ram[IR+1]])
 				self.alu("MULT", self.ram[IR+1], self.ram[IR+2])
-				IR += 3
 			
 			elif instruction == self.HLT:
 				running = False
 
 			else:
-				print("UNK")
+				print("unknown instruction. inst, IR =", instruction, IR)
 				running = False
 
+			inst_len = ((self.ram[IR] & 0b11000000) >> 6) + 1
+			IR += inst_len
 
 
 	def ram_read(self, addr):
