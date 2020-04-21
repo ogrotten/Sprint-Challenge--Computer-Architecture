@@ -41,7 +41,7 @@ class CPU:
 					# 	value from 
 					# 	this line of this file
 
-				self.ram[address] = int(line)
+				self.ram[address] = int(line, 2)
 
 				address += 1
 				
