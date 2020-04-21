@@ -14,30 +14,38 @@ class CPU:
 		#			 |12345678| 
 		self.LDI =	0b10000010
 		self.PRN =	0b01000111
-		self.HLT =	0b00000001 
+		self.HLT =	0b00000001
+		self.MUL =	0b10100010
 
 
-	def load(self):
+	def load(self, filename):
 		"""Load a program into memory."""
 
 		address = 0
 
-		# For now, we've just hardcoded a program:
+		with open(filename) as file:
+			for line in file: 
+				# break each line on OCTOTHORPE
+				line = line.split("#") 
+				# clear out leading spaces
+				line = line[0].strip()
+				# ignore blank lines
+				if line == '': continue
 
-		program = [
-			# From print8.ls8
-			0b10000010, # LDI R0,8
-			0b00000000,
-			0b00001000,
-			0b01000111, # PRN R0
-			0b00000000,
-			0b00000001, # HLT
-		]
+					# getting down to business
+					# in the
+					# 	memory array of
+					# 	the same index as
+					# 	this line of this file
+					# put the 
+					# 	value from 
+					# 	this line of this file
 
-		for instruction in program:
-			self.ram[address] = instruction
-			address += 1
+				self.ram[address] = int(line)
 
+				address += 1
+				
+		print (48, self.ram[:8])
 
 	def alu(self, op, reg_a, reg_b):
 		"""ALU operations."""
@@ -77,7 +85,8 @@ class CPU:
 		while running:
 
 			instruction = self.ram[IR]
-
+			print(88, int(instruction))
+			
 			if instruction == self.LDI:
 				self.register[self.ram[IR+1]] = self.ram[IR+2]
 				# ram_write(self.register[self.ram[IR+1]],   )
