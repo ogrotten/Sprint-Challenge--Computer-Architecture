@@ -19,6 +19,8 @@ class CPU:
 		self.MUL =	0b10100010
 		self.PUSH =	0b01000101
 		self.POP =	0b01000110
+		self.CALL =	0b01010000
+		self.RET =	0b00010001
 
 		# accounting
 		self.pc = 0
@@ -31,10 +33,21 @@ class CPU:
 			self.MUL: self.multiply,
 			self.PRN: self.output,
 			self.PUSH: self.push,
-			self.POP: self.pop
+			self.POP: self.pop,
+			self.CALL: self.call,
+			self.RET: self.call
 		}
 
 	# branchtable defs
+	def call(self):
+		returnto = self.pc + 2				# get addy for returnto
+		self.push(returnto)					# run a push (it doesn't need args)
+
+		regtouse = self.ram[self.pc+1]
+		goto = self.register[regtouse]
+		
+		self.pc = goto
+	
 	def halt(self):
 		self.running = False
 	
@@ -47,23 +60,38 @@ class CPU:
 	def output(self):
 		print(self.register[self.ram[self.pc+1]])
 
-	def push(self):
+	def push(self, x = None):
 		self.register[self.sp] -= 1			# DECK crement to get room for a deeper stack
 		regpos = self.ram[self.pc+1]		# get the register to use from the next slot of ram
-		val = self.register[regpos]			# get the value from the register
+
+		if x = None:
+			val = self.register[regpos]		# get the value from the register
+		else:								# OR
+			val = x							# get the value from the ARGUMENTS
+
 		stackpos = self.register[self.sp]	# where we at in the stack?
 		self.ram[stackpos] = val			# put the value on the stack
 		self.trace("Push")
 
-	def pop(self):
+	def pop(self, ret = False):
 		stackpos = self.register[self.sp]	# get the current stackpointer 
 		val = self.ram[stackpos]			# get the value from ram using stackpointer
-		regpos = self.ram[self.pc+1]		# get the register to use from the next slot of ram
 
-		self.register[regpos] = val			# put the value into the register
 		self.trace("Pop ")
 		self.register[self.sp] += 1			# INN crement for a one shallower stack
 
+		if ret:								# if we're just giving the data back
+			return val						# giv it.
+
+		else:								# Otherwise
+			regpos = self.ram[self.pc+1]	# get the register to use from the next slot of ram
+			self.register[regpos] = val		# put the value into the register
+
+	def ret(self):
+		returnto = self.pop(True)
+
+
+	
 
 	# helper methods
 	def load(self, filename):
@@ -105,7 +133,7 @@ class CPU:
 		else:
 			raise Exception("Unsupported ALU operation")
 
-	def trace(self, LABEL=str()):
+	def trace(self, LABEL="    "):
 		"""
 		Handy function to print out the CPU state. You might want to call this
 		from run() if you need help debugging.
@@ -132,7 +160,13 @@ class CPU:
 
 		print()
 
-	# RRUUUNNN!!!
+	# __________ ____ ___ ____ __________ ._._.
+	# \______   \    |   \    |   \      \| | |
+	#  |       _/    |   /    |   /   |   \ | |
+	#  |    |   \    |  /|    |  /    |    \|\|
+	#  |____|_  /______/ |______/\____|__  /___
+	#         \/                         \/\/\/                                 	
+
 	def run(self):
 		while self.running:
 			IR = self.ram[self.pc]	
