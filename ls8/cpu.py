@@ -13,14 +13,17 @@ class CPU:
 
 		# constants
 		#			 |12345678| 
-		self.LDI =	0b10000010
-		self.PRN =	0b01000111
-		self.HLT =	0b00000001
-		self.MUL =	0b10100010
-		self.PUSH =	0b01000101
+		self.CALL =	0b01010000		# 80
+		self.HLT =	0b00000001		# 1
+		self.LDI =	0b10000010		# 130
 		self.POP =	0b01000110
-		self.CALL =	0b01010000
+		self.PRN =	0b01000111
+		self.PUSH =	0b01000101
 		self.RET =	0b00010001
+
+		# ALU
+		self.ADD =	0b10100000 		# 160
+		self.MUL =	0b10100010		# 162
 
 		# accounting
 		self.pc = 0
@@ -28,17 +31,23 @@ class CPU:
 		self.register[self.sp] = 0xF4		# INIT default stack position to the register
 		self.running = True
 		self.branchtable = {
+			self.CALL: self.call,
 			self.HLT: self.halt,
 			self.LDI: self.loadimm,
-			self.MUL: self.multiply,
+			self.POP: self.pop,
 			self.PRN: self.output,
 			self.PUSH: self.push,
-			self.POP: self.pop,
-			self.CALL: self.call,
-			self.RET: self.call
+			self.RET: self.ret,
+
+			self.ADD: self.add,
+			self.MUL: self.multiply,
 		}
 
 	# branchtable defs
+	def add(self):
+		self.alu("ADD", self.ram[self.pc+1], self.ram[self.pc+2])
+		self.advancepc()
+
 	def call(self):
 		returnto = self.pc + 2				# get addy for returnto
 		self.push(returnto)					# run a push (it doesn't need args)
@@ -53,31 +62,38 @@ class CPU:
 	
 	def loadimm(self):
 		self.register[self.ram[self.pc+1]] = self.ram[self.pc+2]
+		self.advancepc()
 
 	def multiply(self):
 		self.alu("MULT", self.ram[self.pc+1], self.ram[self.pc+2])
+		self.advancepc()
 
 	def output(self):
 		print(self.register[self.ram[self.pc+1]])
+		# self.trace("PRN")
+		self.advancepc()
 
 	def push(self, x = None):
 		self.register[self.sp] -= 1			# DECK crement to get room for a deeper stack
 		regpos = self.ram[self.pc+1]		# get the register to use from the next slot of ram
 
-		if x = None:
+		if x == None:
 			val = self.register[regpos]		# get the value from the register
 		else:								# OR
 			val = x							# get the value from the ARGUMENTS
 
 		stackpos = self.register[self.sp]	# where we at in the stack?
 		self.ram[stackpos] = val			# put the value on the stack
-		self.trace("Push")
+		# self.trace("Push")
+
+		# probably need a condition here for `advancepc` for when called or exec'd directly
+		# self.advancepc()  
 
 	def pop(self, ret = False):
 		stackpos = self.register[self.sp]	# get the current stackpointer 
 		val = self.ram[stackpos]			# get the value from ram using stackpointer
 
-		self.trace("Pop ")
+		# self.trace("Pop ")
 		self.register[self.sp] += 1			# INN crement for a one shallower stack
 
 		if ret:								# if we're just giving the data back
@@ -87,8 +103,12 @@ class CPU:
 			regpos = self.ram[self.pc+1]	# get the register to use from the next slot of ram
 			self.register[regpos] = val		# put the value into the register
 
+		# probably need a condition here for `advancepc` for when called or exec'd directly
+		# self.advancepc()
+
 	def ret(self):
 		returnto = self.pop(True)
+		self.pc = returnto
 
 
 	
@@ -127,7 +147,7 @@ class CPU:
 		"""ALU operations."""
 
 		if op == "ADD":
-			self.reg[reg_a] += self.reg[reg_b]
+			self.register[reg_a] += self.register[reg_b]
 		elif op == "MULT":
 			self.register[reg_a] *= self.register[reg_b]
 		else:
@@ -170,21 +190,23 @@ class CPU:
 	def run(self):
 		while self.running:
 			IR = self.ram[self.pc]	
-			instruction = IR
 			
 			if self.branchtable.get(IR):
 				self.branchtable[IR]()
 			else:
 				print("unknown instruction")
-				self.trace("End")
+				self.trace("End ")
 				self.running = False
 
-			inst_len = ((IR & 0b11000000) >> 6) + 1
-			self.pc += inst_len
 
+	def advancepc(self):
+		IR = self.ram[self.pc]	
+		inst_len = ((IR & 0b11000000) >> 6) + 1
+		self.pc += inst_len
 
 	def ram_read(self, addr):
 		return self.ram[addr]
 
 	def ram_write(self, addr, data):
 		self.ram[addr] = data
+		
