@@ -70,7 +70,7 @@ class CPU:
 
 	def output(self):
 		print(self.register[self.ram[self.pc+1]])
-		self.trace()
+		# self.trace("PRN ")
 		self.advancepc()
 
 	def push(self, x = None):
