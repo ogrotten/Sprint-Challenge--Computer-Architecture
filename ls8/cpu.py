@@ -2,6 +2,8 @@
 
 import sys
 
+dotrace = False
+
 class CPU:
 	"""Main CPU class."""
 
@@ -10,6 +12,13 @@ class CPU:
 		# operational space
 		self.ram = [0] * 256
 		self.register = [0] * 8
+		self.flags = 0				# we'll use it using binary, tho.
+
+		# sprint
+		self.CMP =	0b10100111 		# 167
+		self.JEQ =	0b01010101		# 85
+		self.JNE =  0b01010110		# 86
+		self.JMP =  0b01010100 		# 84
 
 		# constants
 		#			 |12345678| 
@@ -31,8 +40,14 @@ class CPU:
 		self.register[self.sp] = 0xF4		# INIT default stack position to the register
 		self.running = True
 		self.branchtable = {
+			self.CMP: self.comp,
+			self.JEQ: self.jeq,
+			self.JNE: self.jne,
+			self.JMP: self.jmp,
+
 			self.CALL: self.call,
 			self.HLT: self.halt,
+			self.JEQ: self.jeq,
 			self.LDI: self.loadimm,
 			self.POP: self.pop,
 			self.PRN: self.output,
@@ -43,18 +58,57 @@ class CPU:
 			self.MUL: self.multiply,
 		}
 
+	# Arithmatic Logical Unit
+	def alu(self, op, reg_a, reg_b):
+		"""ALU operations."""
+
+		if op == "ADD":
+			self.register[reg_a] += self.register[reg_b]
+		elif op == "MULT":
+			self.register[reg_a] *= self.register[reg_b]
+		elif op == "CMP":
+			if self.register[reg_a] < self.register[reg_b]:
+				self.flag = 0b00000100
+			elif self.register[reg_a] > self.register[reg_b]:
+				self.flag = 0b00000010
+			elif self.register[reg_a] == self.register[reg_b]:
+				self.flag = 0b00000001
+		else:
+			raise Exception("Unsupported ALU operation")
+
+
+
 	# branchtable defs
+	def comp(self):
+		self.alu("CMP", self.ram[self.pc+1], self.ram[self.pc+2])
+	
+	def jeq(self):
+		if self.flagequal():
+			regtouse = self.ram[self.pc+1]
+			goto = self.register[regtouse]
+			self.pc = goto
+
+	def jne(self):
+		if not self.flagequal():
+			regtouse = self.ram[self.pc+1]
+			goto = self.register[regtouse]
+			self.pc = goto
+
+	def jmp(self):
+		regtouse = self.ram[self.pc+1]
+		goto = self.register[regtouse]
+		self.pc = goto
+
+
+
 	def add(self):
 		self.alu("ADD", self.ram[self.pc+1], self.ram[self.pc+2])
-		self.advancepc()
 
 	def call(self):
 		returnto = self.pc + 2				# get addy for returnto
 		self.push(returnto)					# run a push (it doesn't need args)
-
 		regtouse = self.ram[self.pc+1]
 		goto = self.register[regtouse]
-		
 		self.pc = goto
 	
 	def halt(self):
@@ -62,16 +116,13 @@ class CPU:
 	
 	def loadimm(self):
 		self.register[self.ram[self.pc+1]] = self.ram[self.pc+2]
-		self.advancepc()
 
 	def multiply(self):
 		self.alu("MULT", self.ram[self.pc+1], self.ram[self.pc+2])
-		self.advancepc()
 
 	def output(self):
 		print(self.register[self.ram[self.pc+1]])
 		# self.trace("PRN ")
-		self.advancepc()
 
 	def push(self, x = None):
 		self.register[self.sp] -= 1			# DECK crement to get room for a deeper stack
@@ -85,10 +136,6 @@ class CPU:
 		stackpos = self.register[self.sp]	# where we at in the stack?
 		self.ram[stackpos] = val			# put the value on the stack
 		# self.trace("Push")
-
-		# probably need a condition here for `advancepc` for when called or exec'd directly
-		if not self.checkpcsetter():
-			self.advancepc()  
 
 	def pop(self, ret = False):
 		stackpos = self.register[self.sp]	# get the current stackpointer 
@@ -104,15 +151,9 @@ class CPU:
 			regpos = self.ram[self.pc+1]	# get the register to use from the next slot of ram
 			self.register[regpos] = val		# put the value into the register
 
-		# probably need a condition here for `advancepc` for when called or exec'd directly
-		if not self.checkpcsetter():
-			self.advancepc()  
-
 	def ret(self):
 		returnto = self.pop(True)
 		self.pc = returnto
-
-
 	
 
 	# helper methods
@@ -127,13 +168,20 @@ class CPU:
 	def run(self):
 		while self.running:
 			IR = self.ram[self.pc]	
+			label = f"%03i  |" % IR
 			
 			if self.branchtable.get(IR):
 				self.branchtable[IR]()
 			else:
-				print("unknown instruction")
-				self.trace("End ")
+				print("\nUnknown instruction")
+				label = "End  |"
 				self.running = False
+			
+			# Run Maintenance
+			if dotrace: self.trace(label)
+			if not self.checkpcsetter():
+				self.advancepc()  
+
 
 	def advancepc(self):
 		IR = self.ram[self.pc]	
@@ -142,8 +190,10 @@ class CPU:
 
 	def checkpcsetter(self):
 		IR = self.ram[self.pc]	
-		return ((IR & 0b00010000) >> 5) + 1
+		return ((IR & 0b00010000) >> 5)
 		
+	def flagequal(self):
+		return (self.flags == 1)	
 
 	def load(self, filename):
 		"""Load a program into memory."""
@@ -174,22 +224,7 @@ class CPU:
 				
 		# print (48, self.ram[:8])
 
-	def alu(self, op, reg_a, reg_b):
-		"""ALU operations."""
-
-		if op == "ADD":
-			self.register[reg_a] += self.register[reg_b]
-		elif op == "MULT":
-			self.register[reg_a] *= self.register[reg_b]
-		else:
-			raise Exception("Unsupported ALU operation")
-
 	def trace(self, LABEL="    "):
-		"""
-		Handy function to print out the CPU state. You might want to call this
-		from run() if you need help debugging.
-		"""
-
 		print(f"{LABEL} TRACE --> PC: %02i | RAM: %03i %03i %03i | Register: " % (
 			self.pc,
 			#self.fl,
@@ -210,7 +245,6 @@ class CPU:
 			stackpos -= 1
 
 		print()
-
 
 	def ram_read(self, addr):
 		return self.ram[addr]
