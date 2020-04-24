@@ -87,7 +87,8 @@ class CPU:
 		# self.trace("Push")
 
 		# probably need a condition here for `advancepc` for when called or exec'd directly
-		# self.advancepc()  
+		if not self.checkpcsetter():
+			self.advancepc()  
 
 	def pop(self, ret = False):
 		stackpos = self.register[self.sp]	# get the current stackpointer 
@@ -104,7 +105,8 @@ class CPU:
 			self.register[regpos] = val		# put the value into the register
 
 		# probably need a condition here for `advancepc` for when called or exec'd directly
-		# self.advancepc()
+		if not self.checkpcsetter():
+			self.advancepc()  
 
 	def ret(self):
 		returnto = self.pop(True)
@@ -114,6 +116,35 @@ class CPU:
 	
 
 	# helper methods
+
+	# __________ ____ ___ ____ __________ ._._.
+	# \______   \    |   \    |   \      \| | |
+	#  |       _/    |   /    |   /   |   \ | |
+	#  |    |   \    |  /|    |  /    |    \|\|
+	#  |____|_  /______/ |______/\____|__  /___
+	#         \/                         \/\/\/                                 	
+
+	def run(self):
+		while self.running:
+			IR = self.ram[self.pc]	
+			
+			if self.branchtable.get(IR):
+				self.branchtable[IR]()
+			else:
+				print("unknown instruction")
+				self.trace("End ")
+				self.running = False
+
+	def advancepc(self):
+		IR = self.ram[self.pc]	
+		inst_len = ((IR & 0b11000000) >> 6) + 1
+		self.pc += inst_len
+
+	def checkpcsetter(self):
+		IR = self.ram[self.pc]	
+		return ((IR & 0b00010000) >> 5) + 1
+		
+
 	def load(self, filename):
 		"""Load a program into memory."""
 
@@ -180,29 +211,6 @@ class CPU:
 
 		print()
 
-	# __________ ____ ___ ____ __________ ._._.
-	# \______   \    |   \    |   \      \| | |
-	#  |       _/    |   /    |   /   |   \ | |
-	#  |    |   \    |  /|    |  /    |    \|\|
-	#  |____|_  /______/ |______/\____|__  /___
-	#         \/                         \/\/\/                                 	
-
-	def run(self):
-		while self.running:
-			IR = self.ram[self.pc]	
-			
-			if self.branchtable.get(IR):
-				self.branchtable[IR]()
-			else:
-				print("unknown instruction")
-				self.trace("End ")
-				self.running = False
-
-
-	def advancepc(self):
-		IR = self.ram[self.pc]	
-		inst_len = ((IR & 0b11000000) >> 6) + 1
-		self.pc += inst_len
 
 	def ram_read(self, addr):
 		return self.ram[addr]
